@@ -1,9 +1,8 @@
 const User = require("../models/user");
-const Exercise = require("../models/exercise");
 class ApiController {
   static async postUser(req, res) {
     try {
-      const { username } = req.body;
+      const { username } = req.bodyPOST;
       const newUser = new User({
         username,
       });
@@ -38,25 +37,29 @@ class ApiController {
     try {
       const _id = req.params._id;
       let { description, duration, date } = req.body;
-      if (date) {
-        date = new Date(date).toDateString();
-      } else {
-        date = new Date().toDateString();
-      }
-      const user = await User.findOne({ _id });
-      const newExercise = new Exercise({
-        username: user.username,
+      const newExercise = {
         description,
         duration: +duration,
         date,
-      });
-      const result = await newExercise.save();
-      res.status(201).send({
+      };
+      const result = await User.findByIdAndUpdate(
+        _id,
+        {
+          $push: {
+            exercises: newExercise,
+          },
+        },
+        {
+          new: true,
+        }
+      );
+      const output = result.exercises[result.exercises.length - 1];
+      res.status(200).send({
         username: result.username,
-        description: result.description,
-        duration: result.duration,
-        date: result.date,
-        _id: user._id,
+        description: output.description,
+        duration: output.duration,
+        date: output.date.toDateString(),
+        _id: result._id,
       });
     } catch (error) {
       console.log("error occured", error);
@@ -69,20 +72,34 @@ class ApiController {
   }
   static async getLogs(req, res) {
     try {
+      const from = req.query.from;
+      const to = req.query.to;
+      const limit = +req.query.limit;
       const _id = req.params._id;
       const user = await User.findOne({ _id });
-      const log = await Exercise.find(
-        { username: user.username },
-        "description duration date -_id"
-      );
-      const count = log.length;
-      const result = {
+      let exercises = user.exercises;
+      if (from) {
+        exercises = exercises.filter((el) => el.date >= new Date(from));
+      }
+      if (to) {
+        exercises = exercises.filter((el) => el.date <= new Date(to));
+      }
+      if (limit) {
+        exercises = exercises.slice(0, limit);
+      }
+      const output = {
         username: user.username,
-        count,
         _id: user._id,
-        log,
+        count: exercises.length,
+        log: exercises.map(el => {
+          return {
+            description: el.description,
+            duration: el.duration,
+            date: el.date.toDateString()
+          }
+        })
       };
-      res.status(200).send(result);
+      res.status(200).send(output);
     } catch (error) {
       console.log("error occured", error);
       let code = 500;
