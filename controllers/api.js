@@ -2,7 +2,7 @@ const User = require("../models/user");
 class ApiController {
   static async postUser(req, res) {
     try {
-      const { username } = req.bodyPOST;
+      const { username } = req.body;
       const newUser = new User({
         username,
       });
@@ -74,7 +74,7 @@ class ApiController {
     try {
       const from = req.query.from;
       const to = req.query.to;
-      const limit = +req.query.limit;
+      const limit = req.query.limit;
       const _id = req.params._id;
       const user = await User.findOne({ _id });
       let exercises = user.exercises;
@@ -85,7 +85,7 @@ class ApiController {
         exercises = exercises.filter((el) => el.date <= new Date(to));
       }
       if (limit) {
-        exercises = exercises.slice(0, limit);
+        exercises = exercises.slice(0, +limit);
       }
       const output = {
         username: user.username,
